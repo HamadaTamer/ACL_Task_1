@@ -72,7 +72,7 @@ export async function createPerk(req, res, next) {
 export async function updatePerk(req, res, next) {
   try {
 
-    //
+    // this is to map the perkschema to the update schema where all fields are optional
     const updateSchema = perkSchema.fork(Object.keys(perkSchema.describe().keys), (schema) => schema.optional());
 
     if (!req.body || Object.keys(req.body).length === 0) {
@@ -80,11 +80,14 @@ export async function updatePerk(req, res, next) {
     }
 
     // validating the incoming fields using the provided schema
-    const { value, error } = updateSchema.validate(req.body);
+    const { value, error } = updateSchema.validate(req.body, {
+        abortEarly: false,
+        stripUnknown: true,
+        noDefaults: true
+      });    
     if (error) {
       return res.status(400).json({ message: error.message });
     }
-
     const doc = await Perk.findByIdAndUpdate(
       req.params.id,
       { $set: value } ,
