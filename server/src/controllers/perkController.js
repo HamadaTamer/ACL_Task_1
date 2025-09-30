@@ -71,46 +71,31 @@ export async function createPerk(req, res, next) {
 // Update an existing perk by ID and validate only the fields that are being updated 
 export async function updatePerk(req, res, next) {
   try {
+
+    //
+    const updateSchema = perkSchema.fork(Object.keys(perkSchema.describe().keys), (schema) => schema.optional());
+
     if (!req.body || Object.keys(req.body).length === 0) {
       return res.status(400).json({ message: 'No fields provided to update' });
     }
 
-    // Allow only fields that are updatable (avoid createdBy, timestamps, etc.)
-    const updateSchema = Joi.object({
-      title: Joi.string().min(2),
-      description: Joi.string().allow(''),
-      category: Joi.string().valid('food', 'tech', 'travel', 'fitness', 'other'),
-      discountPercent: Joi.number().min(0).max(100),
-      merchant: Joi.string().allow('')
-    }).min(1);
-
-    // Validate incoming patch; drop unknown keys
-    const { value, error } = updateSchema.validate(req.body, {
-      abortEarly: false,
-      stripUnknown: true
-    });
+    // validating the incoming fields using the provided schema
+    const { value, error } = updateSchema.validate(req.body);
     if (error) {
       return res.status(400).json({ message: error.message });
     }
 
-    // Apply only validated keys
     const doc = await Perk.findByIdAndUpdate(
       req.params.id,
-      { $set: value },
-      {
-        new: true,              // return updated doc
-        runValidators: true,    // run Mongoose validators on update
-        context: 'query'        // needed for some validators on update
-      }
+      { $set: value } ,
+      {new: true, runValidators: true} 
     );
 
     if (!doc) return res.status(404).json({ message: 'Perk not found' });
+
     return res.json({ perk: doc });
+ 
   } catch (err) {
-    // Handle duplicate key (unique title per merchant)
-    if (err?.code === 11000) {
-      return res.status(409).json({ message: 'Duplicate perk for this merchant' });
-    }
     next(err);
   }
 
